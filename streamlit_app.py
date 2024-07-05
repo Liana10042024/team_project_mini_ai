@@ -182,15 +182,103 @@ def highlight_legal_terms(text: str) -> str:
     return text
 
 def show_main_page():
+    st.markdown("""
+    <style>
+    body {
+        font-family: Arial, sans-serif;
+        color: #333;
+    }
+    .main-content {
+        text-align: center;
+        padding: 20px;
+        background-color: rgba(255, 255, 255, 0.7);
+        border-radius: 10px;
+    }
+    h1 {
+        font-size: 3rem;
+        margin-bottom: 0.5rem;
+    }
+    .subtitle {
+        font-size: 1.8rem;
+        margin-bottom: 3rem;
+    }
+    .start-button {
+        background-color: #000;
+        color: #fff;
+        padding: 0.75rem 2rem;
+        font-size: 1.2rem;
+        font-weight: bold;
+        text-decoration: none;
+        border-radius: 25px;
+    }
+    .usage-guide, .guide-content {
+        background-color: rgba(248, 248, 248, 0.9);
+        padding: 40px;
+        border-radius: 10px;
+        margin-top: 40px;
+    }
+    .usage-guide-title {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-bottom: 20px;
+    }
+    .guide-title {
+        font-size: 2rem;
+        margin-bottom: 20px;
+    }
+    .guide-example {
+        background-color: rgba(224, 224, 224, 0.9);
+        padding: 20px;
+        border-radius: 5px;
+        font-size: 0.9rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div class="main-content">', unsafe_allow_html=True)
     st.title("AI 기반 맞춤형 판례 검색 서비스")
-    st.write("당신의 상황에 가장 적합한 판례를 찾아드립니다")
-
-    st.image("static/photo.png", width=200)
-
-    if st.button("바로 시작"):
+    st.markdown('<p class="subtitle">당신의 상황에 가장 적합한 판례를 찾아드립니다</p>', unsafe_allow_html=True)
+    
+    if st.button("바로 시작", key="start_button"):
         st.session_state.page = "search"
-    else:
-        st.write("시작하려면 '바로 시작' 버튼을 클릭하세요.")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="usage-guide">', unsafe_allow_html=True)
+    st.markdown('<div class="usage-guide-title">이용 방법</div>', unsafe_allow_html=True)
+    st.markdown("""
+    - **법률 분야 선택**: 검색하고 싶은 법률의 분야를 선택하면 더 정확하게 나와요.
+    - **상황 설명**: 법률 문제를 최대한 자세히 작성해주세요.
+    - **검색 실행**: 날짜, 관련자, 사건 경과를 언급해주세요.
+    - **결과 확인**: 검색 버튼을 눌러 유사 판례를 확인하세요.
+    - **재검색**: 필요시 '재검색' 버튼을 눌러 새로운 검색을 시작하세요.
+    """)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="guide-content">', unsafe_allow_html=True)
+    st.markdown('<div class="guide-title">작성 가이드라인</div>', unsafe_allow_html=True)
+    st.markdown("""
+    1. 사건의 발생 시기와 장소를 명시해주세요.
+    2. 관련된 사람들의 관계를 설명해주세요.
+    3. 사건의 경과를 시간 순서대로 작성해주세요.
+    4. 문제가 되는 행위나 상황을 설명해주세요.
+    5. 알고 싶은 법률적 문제를 명확히 해주세요.
+    """)
+    
+    st.markdown('<div class="guide-example">', unsafe_allow_html=True)
+    st.markdown("""
+    "2023년 3월 1일, 서울시 강남구의 한 아파트를 2년 계약으로 월세 100만원에 임대했습니다. 
+    계약 당시 집주인과 구두로 2년 후 재계약 시 월세를 5% 이상 올리지 않기로 약속했습니다. 
+    그러나 계약 만료 3개월 전인 2024년 12월, 집주인이 갑자기 월세를 150만원으로 50% 인상하겠다고 통보했습니다. 
+    이를 거부하면 퇴거해야 한다고 합니다. 구두 약속은 법적 효력이 있는지, 
+    그리고 이런 과도한 월세 인상이 법적으로 가능한지 알고 싶습니다."
+    """)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    if st.button("검색하러 가기", key="search_button"):
+        st.session_state.page = "search"
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
 def show_search_page():
     st.title("법률 판례 검색")
