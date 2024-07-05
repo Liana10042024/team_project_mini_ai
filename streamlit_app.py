@@ -281,6 +281,11 @@ def show_result_page():
         st.subheader("참조된 관련 판례")
         st.markdown(highlight_legal_terms(case.reference_court_case), unsafe_allow_html=True)
 
+    if case.courtType or case.courtNm:
+        st.subheader("법원의 종류, 이름")
+        st.markdown(highlight_legal_terms(case.courtType), unsafe_allow_html=True)
+        st.markdown(highlight_legal_terms(case.courtNm), unsafe_allow_html=True)
+
     if st.button("다시 검색하기"):
         st.session_state.page = "search"
 
