@@ -260,7 +260,12 @@ def show_result_page():
         similarities = cosine_similarity(user_vector, filtered_tfidf_matrix)
         most_similar_idx = similarities.argmax()
         case = filtered_cases[most_similar_idx]
+  
+    if case.caseNo:
+        st.subheader("사건 번호")
+        st.markdown(highlight_legal_terms(case.caseNo), unsafe_allow_html=True)
 
+    
     st.subheader("요약")
     st.markdown(highlight_legal_terms(case.summary), unsafe_allow_html=True)
     
