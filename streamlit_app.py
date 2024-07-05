@@ -264,18 +264,22 @@ def show_result_page():
     if case.caseNo:
         st.subheader("사건 번호")
         st.markdown(highlight_legal_terms(case.caseNo), unsafe_allow_html=True)
+    
+    if case.judmnAdjuDe:
+        st.subheader("판결 날짜")
+        st.markdown(highlight_legal_terms(case.judmnAdjuDe), unsafe_allow_html=True)
 
     
     st.subheader("요약")
     st.markdown(highlight_legal_terms(case.summary), unsafe_allow_html=True)
     
-    if case.jdgmnQuestion:
-        st.subheader("핵심 질문")
-        st.markdown(highlight_legal_terms(case.jdgmnQuestion), unsafe_allow_html=True)
+    if case.reference_rules:
+        st.subheader("참조된 법률 조항")
+        st.markdown(highlight_legal_terms(case.reference_rules), unsafe_allow_html=True)
     
-    if case.jdgmnAnswer:
-        st.subheader("답변")
-        st.markdown(highlight_legal_terms(case.jdgmnAnswer), unsafe_allow_html=True)
+    if case.reference_court_case:
+        st.subheader("참조된 관련 판례")
+        st.markdown(highlight_legal_terms(case.reference_court_case), unsafe_allow_html=True)
 
     if st.button("다시 검색하기"):
         st.session_state.page = "search"
