@@ -77,7 +77,7 @@ def check_db(session):
         return False  # 모든 테이블이 비어있음
     finally:
         session.close()
-        
+
 @st.cache_resource
 def load_cases() -> List[Case]:
     Base.metadata.bind = engine
@@ -99,11 +99,9 @@ def load_cases() -> List[Case]:
 
     finally:
         session.close()
+
 def get_file_size(file_path):
-    # 파일 크기를 바이트 단위로 가져옴
     size_in_bytes = os.path.getsize(file_path)
-    
-    # 크기를 읽기 쉬운 형식으로 변환
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
         if size_in_bytes < 1024.0:
             break
@@ -111,33 +109,37 @@ def get_file_size(file_path):
     
     return f"{size_in_bytes:.2f} {unit}"
 
-# 사용 예
-file_path = "legal_cases.db"  # 여기에 실제 파일 경로를 입력하세요
-
 @st.cache_resource
 def get_vectorizer_and_matrix() -> Tuple[TfidfVectorizer, any, List[Case]]:
     inspector = inspect(engine)
     exists = inspector.has_table('cases')
     print(exists, '존재?')
     
-    if exists == False :
+    if not exists:
         logging.info("데이터베이스 다운로드 시작")
         st.write("잠시만 기다려 주세요. DB를 다운로드 하고 있습니다.")
         download_db()
+        exists = inspector.has_table('cases')
 
-    exists = inspector.has_table('cases')
     file_size = get_file_size(file_path)
     print(f"File size: {file_size}")
-    if exists :
-        print(f'테이블이 존재하는지 여부 {exists}다운로드 끝')
+    
+    if exists:
+        logging.info(f'테이블이 존재하는지 여부 {exists} 다운로드 끝')
         cases = load_cases()
-        vectorizer = TfidfVectorizer()
-        tfidf_matrix = vectorizer.fit_transform([case.summary for case in cases if case.summary])
-        return vectorizer, tfidf_matrix, cases
-    else : 
-        st.write('DB에 여전히 데이터가 존재하지 않습니다. ', get_file_size(file_path))
-        file_size = get_file_size(file_path)
-        print(f"File size: {file_size}")
+        if cases:
+            vectorizer = TfidfVectorizer()
+            tfidf_matrix = vectorizer.fit_transform([case.summary for case in cases if case.summary])
+            return vectorizer, tfidf_matrix, cases
+        else:
+            st.write("데이터베이스에서 판례를 로드하는데 실패했습니다.")
+            logging.error("데이터베이스에서 판례를 로드하는데 실패했습니다.")
+    else:
+        st.write('DB에 여전히 데이터가 존재하지 않습니다. ', file_size)
+        logging.error("DB에 여전히 데이터가 존재하지 않습니다.")
+
+    return None, None, None
+
 def local_css():
     st.markdown("""
     <style>
@@ -223,12 +225,16 @@ def show_result_page():
 
     with st.spinner('판례를 검색 중입니다...'):
         vectorizer, tfidf_matrix, cases = get_vectorizer_and_matrix()
+        
+        if vectorizer is None or tfidf_matrix is None or cases is None:
+            st.error("판례 데이터를 로드하는데 실패했습니다. 다시 시도해 주세요.")
+            return
 
         if not selected_fields or '잘모르겠습니다' in selected_fields:
             filtered_cases = cases
             filtered_tfidf_matrix = tfidf_matrix
         else:
-            filtered_cases = [case for case in cases if case.class_name in selected_fields]
+            filtered_cases = [case for case in filtered_cases if case.class_name in selected_fields]
             filtered_tfidf_matrix = vectorizer.transform([case.summary for case in filtered_cases if case.summary])
         
         user_vector = vectorizer.transform([user_input])
