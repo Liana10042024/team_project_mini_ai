@@ -138,6 +138,8 @@ def get_vectorizer_and_matrix() -> Tuple[TfidfVectorizer, any, List[Case]]:
         st.write('DB에 여전히 데이터가 존재하지 않습니다. ', get_file_size(file_path))
         file_size = get_file_size(file_path)
         print(f"File size: {file_size}")
+        
+        
 def local_css():
     st.markdown("""
     <style>
