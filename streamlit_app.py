@@ -264,9 +264,7 @@ def main():
         show_result_page()
 
 if __name__ == '__main__':
-    main()
-
-import streamlit as st
+    main()import streamlit as st
 st.set_page_config(page_title="AI 기반 맞춤형 판례 검색 서비스", layout="wide")
 
 import requests
