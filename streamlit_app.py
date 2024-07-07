@@ -170,6 +170,7 @@ def local_css():
         background-repeat: no-repeat;
         background-attachment: fixed;
     }
+<<<<<<< HEAD
     header {
         padding: 1rem;
         background-color: rgba(255, 255, 255, 0.7);
@@ -284,10 +285,16 @@ def local_css():
         justify-content: center;
         width: 100%;
         margin-top: 20px;
+=======
+    .tooltip-inner {
+        max-width: 300px;
+        text-align: left;
+>>>>>>> parent of 10fa4f9 (show_main_papge() <- index.html)
     }
     </style>
     """, unsafe_allow_html=True)
 
+<<<<<<< HEAD
 def show_main_page():
     st.markdown('<header><h2>잉공지능</h2></header>', unsafe_allow_html=True)
     
@@ -345,6 +352,26 @@ def highlight_legal_terms(text: str) -> str:
         text = re.sub(pattern, replacement, text)
     return text
 
+=======
+def highlight_legal_terms(text: str) -> str:
+    terms = get_legal_terms()
+    for term, explanation in terms.items():
+        pattern = r'\b' + re.escape(term) + r'\b'
+        replacement = f'<span class="legal-term" title="{explanation}">{term}</span>'
+        text = re.sub(pattern, replacement, text)
+    return text
+
+def show_main_page():
+    st.title("AI 기반 맞춤형 판례 검색 서비스")
+    st.write("당신의 상황에 가장 적합한 판례를 찾아드립니다")
+
+    st.image("static/photo.png", width=200)
+
+    if st.button("바로 시작"):
+        st.session_state.page = "search"
+    else:
+        st.write("시작하려면 '바로 시작' 버튼을 클릭하세요.")
+>>>>>>> parent of 10fa4f9 (show_main_papge() <- index.html)
 
 def show_search_page():
     st.title("법률 판례 검색")
