@@ -1,28 +1,33 @@
 import streamlit as st
-st.set_page_config(page_title="AI 기반 맞춤형 판례 검색 서비스", layout="wide")
-
 import requests
-from sqlalchemy import inspect, text, select
+from sqlalchemy import create_engine, inspect, text, select
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sqlalchemy.orm import sessionmaker
-from db_manager import Base, Case, engine
+from db_manager import Base, Case
 import re
 import logging
 import json
 import os
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import gdown
+
+# Streamlit 설정
+st.set_page_config(page_title="AI 기반 맞춤형 판례 검색 서비스", layout="wide")
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# API 설정
+# 상수 정의
 API_KEY = "D/spYGY15giVS64SLvtShZlNHxAbr9eDi1uU1Ca1wrqCiU+0YMwcnFy53naflVlg5wemikAYwiugNoIepbpexQ=="
 API_URL = "https://api.odcloud.kr/api/15069932/v1/uddi:3799441a-4012-4caa-9955-b4d20697b555"
-
-# 법률 용어 사전
 CACHE_FILE = "legal_terms_cache.json"
+DB_FILE = "legal_cases.db"
+DB_URL = "https://drive.google.com/uc?id=1rBTbbtBE5K5VgiuTvt3JgneuJ8odqCJm"
+
+# 데이터베이스 엔진 정의
+engine = create_engine(f'sqlite:///{DB_FILE}')
+Session = sessionmaker(bind=engine)
 
 @st.cache_data
 def get_legal_terms() -> dict:
@@ -59,30 +64,34 @@ def get_legal_terms() -> dict:
     return legal_terms_dict
 
 def download_db():
-    file_id = "1rBTbbtBE5K5VgiuTvt3JgneuJ8odqCJm"
-    output = "legal_cases.db" # 저장 위치 및 저장할 파일 이름
-    gdown.download(id=file_id, output=output, quiet=False)
-
-def check_db(session):
-    inspector = inspect(engine)
-    table_name = 'cases'
     try:
-        for table_name in inspector.get_table_names():
-            # 테이블에서 첫 번째 행을 선택하는 쿼리
-            stmt = select(text('1')).select_from(text(table_name)).limit(1)
-            result = session.execute(stmt)
-            if result.first():
-                return True  # 데이터가 있음
+        gdown.download(DB_URL, DB_FILE, quiet=False)
+        logging.info(f"데이터베이스 다운로드 완료: {DB_FILE}")
+        # 데이터베이스 다운로드 후 엔진 재생성
+        global engine
+        engine = create_engine(f'sqlite:///{DB_FILE}')
+        Base.metadata.create_all(engine)
+    except Exception as e:
+        logging.error(f"데이터베이스 다운로드 실패: {str(e)}")
+        st.error("데이터베이스 다운로드에 실패했습니다. 네트워크 연결을 확인하고 다시 시도해주세요.")
+
+def check_db():
+    if not os.path.exists(DB_FILE):
+        logging.info("데이터베이스 파일이 없습니다. 다운로드를 시작합니다.")
         download_db()
-        return False  # 모든 테이블이 비어있음
-    finally:
-        session.close()
-        
+    
+    inspector = inspect(engine)
+    if not inspector.has_table('cases'):
+        logging.warning("cases 테이블이 없습니다. 데이터베이스를 다시 다운로드합니다.")
+        download_db()
+        return False
+    
+    return True
+
 @st.cache_resource
 def load_cases() -> List[Case]:
-    Base.metadata.bind = engine
-    DBSession = sessionmaker(bind=engine)
-    session = DBSession()
+    check_db()
+    session = Session()
 
     logging.info("데이터베이스에서 판례 데이터 로딩 시작")
     try:
@@ -99,45 +108,23 @@ def load_cases() -> List[Case]:
 
     finally:
         session.close()
-def get_file_size(file_path):
-    # 파일 크기를 바이트 단위로 가져옴
-    size_in_bytes = os.path.getsize(file_path)
-    
-    # 크기를 읽기 쉬운 형식으로 변환
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if size_in_bytes < 1024.0:
-            break
-        size_in_bytes /= 1024.0
-    
-    return f"{size_in_bytes:.2f} {unit}"
-
-# 사용 예
-file_path = "legal_cases.db"  # 여기에 실제 파일 경로를 입력하세요
 
 @st.cache_resource
-def get_vectorizer_and_matrix() -> Tuple[TfidfVectorizer, any, List[Case]]:
-    inspector = inspect(engine)
-    exists = inspector.has_table('cases')
-    print(exists, '존재?')
-    
-    if exists == False :
-        logging.info("데이터베이스 다운로드 시작")
-        st.write("잠시만 기다려 주세요. DB를 다운로드 하고 있습니다.")
-        download_db()
-
-    exists = inspector.has_table('cases')
-    file_size = get_file_size(file_path)
-    print(f"File size: {file_size}")
-    if exists :
-        print(f'테이블이 존재하는지 여부 {exists}다운로드 끝')
+def get_vectorizer_and_matrix():
+    try:
         cases = load_cases()
+        if not cases:
+            st.error("케이스 데이터가 비어 있습니다.")
+            return None, None, None
+
         vectorizer = TfidfVectorizer()
         tfidf_matrix = vectorizer.fit_transform([case.summary for case in cases if case.summary])
         return vectorizer, tfidf_matrix, cases
-    else : 
-        st.write('DB에 여전히 데이터가 존재하지 않습니다. ', get_file_size(file_path))
-        file_size = get_file_size(file_path)
-        print(f"File size: {file_size}")
+    except Exception as e:
+        logging.error(f"get_vectorizer_and_matrix 함수에서 오류 발생: {str(e)}")
+        st.error(f"데이터 처리 중 오류가 발생했습니다: {str(e)}")
+        return None, None, None
+
 def local_css():
     st.markdown("""
     <style>
@@ -147,12 +134,24 @@ def local_css():
         color: #333;
     }
     .legal-term {
+        font-weight: bold;
         color: #007bff;
         cursor: help;
+        position: relative;
     }
-    .tooltip-inner {
-        max-width: 300px;
-        text-align: left;
+    .legal-term:hover::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #333;
+        color: #fff;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 14px;
+        white-space: nowrap;
+        z-index: 1;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -161,7 +160,7 @@ def highlight_legal_terms(text: str) -> str:
     terms = get_legal_terms()
     for term, explanation in terms.items():
         pattern = r'\b' + re.escape(term) + r'\b'
-        replacement = f'<span class="legal-term" title="{explanation}">{term}</span>'
+        replacement = f'<span class="legal-term" data-tooltip="{explanation}">{term}</span>'
         text = re.sub(pattern, replacement, text)
     return text
 
@@ -222,7 +221,12 @@ def show_result_page():
     selected_fields = st.session_state.selected_fields
 
     with st.spinner('판례를 검색 중입니다...'):
-        vectorizer, tfidf_matrix, cases = get_vectorizer_and_matrix()
+        result = get_vectorizer_and_matrix()
+        if result is None or len(result) != 3:
+            st.error("데이터를 불러오는 데 실패했습니다. 관리자에게 문의해주세요.")
+            return
+        
+        vectorizer, tfidf_matrix, cases = result
 
         if not selected_fields or '잘모르겠습니다' in selected_fields:
             filtered_cases = cases
@@ -231,10 +235,23 @@ def show_result_page():
             filtered_cases = [case for case in cases if case.class_name in selected_fields]
             filtered_tfidf_matrix = vectorizer.transform([case.summary for case in filtered_cases if case.summary])
         
+        if not filtered_cases:
+            st.warning("선택한 법률 분야에 해당하는 판례가 없습니다. 다른 분야를 선택해주세요.")
+            return
+
         user_vector = vectorizer.transform([user_input])
         similarities = cosine_similarity(user_vector, filtered_tfidf_matrix)
         most_similar_idx = similarities.argmax()
         case = filtered_cases[most_similar_idx]
+
+    if case.caseNo:
+        st.subheader("사건 번호")
+        st.markdown(highlight_legal_terms(case.caseNo), unsafe_allow_html=True)
+
+    if case.judmnAdjuDe:
+        st.subheader("판결 날짜")
+        st.markdown(highlight_legal_terms(case.judmnAdjuDe), unsafe_allow_html=True)
+
 
     st.subheader("요약")
     st.markdown(highlight_legal_terms(case.summary), unsafe_allow_html=True)
@@ -242,10 +259,16 @@ def show_result_page():
     if case.jdgmnQuestion:
         st.subheader("핵심 질문")
         st.markdown(highlight_legal_terms(case.jdgmnQuestion), unsafe_allow_html=True)
-    
-    if case.jdgmnAnswer:
-        st.subheader("답변")
-        st.markdown(highlight_legal_terms(case.jdgmnAnswer), unsafe_allow_html=True)
+
+    if case.reference_court_case:
+        st.subheader("참조된 관련 판례")
+        st.markdown(highlight_legal_terms(case.reference_court_case), unsafe_allow_html=True)
+        
+    if case.courtType or case.courtNm:
+        st.subheader("법원의 종류, 이름")
+        court_info = f"{case.courtType}, {case.courtNm}"
+        st.markdown(highlight_legal_terms(court_info), unsafe_allow_html=True)
+
 
     if st.button("다시 검색하기"):
         st.session_state.page = "search"
